@@ -1,0 +1,11 @@
+- hosts: localhost
+  tasks:
+    - name: 'Gatering instances info'
+      ec2_instance_info:
+      register: instances
+    - name: 'Deleting the slave instance'
+      ec2:
+        region: 'us-east-1'
+        instance_ids: '{{item.instance_id}}' 
+        state: 'absent'
+      loop: '{{instances.instances}}'

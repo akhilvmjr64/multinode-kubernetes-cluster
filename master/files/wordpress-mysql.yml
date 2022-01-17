@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: secret1
+data:
+  rootpass: cjAwdHBhNTU=
+  userpass: dTVlcnBhNTU=
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: db-pod
+  labels:
+    type: database
+spec:
+  containers:
+    - name: db-pod
+      image: mysql:5.7
+      env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: secret1
+              key: rootpass
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: secret1
+              key: userpass
+        - name: MYSQL_USER
+          value: user1
+        - name: MYSQL_DATABASE
+          value: wpdb
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: wp-pod
+  labels:
+    type: wordpress
+spec:
+  containers:
+    - name: wordpress-pod
+      image: wordpress:5.1.1-php7.3-apache
+      env:
+        - name: WORDPRESS_DB_HOST
+          value: db-lb
+        - name: WORDPRESS_DB_USER
+          value: user1
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: secret1
+              key: userpass
+        - name: WORDPRESS_DB_NAME
+          value: wpdb
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wp-lb
+spec:
+  selector:
+    type: wordpress
+  type: NodePort
+  ports:
+    - targetPort: 80
+      port: 80
+      nodePort: 30001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-lb
+spec:
+  selector:
+    type: database
+  ports:
+    - port: 3306
+---

@@ -1,0 +1,14 @@
+# after the slaves join CNI pods must be created and then we can launch our application
+
+# adding the CNI pods
+- name: "Getting config for flannel pods"
+  shell: "curl -O https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml; sed -i s@10.244.0.0/16@{{ networkCIDR }}@g kube-flannel.yml;"
+- name: "Adding the flannel pods"
+  command: "kubectl apply -f kube-flannel.yml"
+# lauching wordpress application
+- name: "Copying the template for the Wordpress Persistent DB"
+  copy:
+    src: wordpress-mysql.yml
+    dest: wordpress-mysql.yml
+- name: "Launching wordpress and mysql database"
+  command: "kubectl apply -f wordpress-mysql.yml"

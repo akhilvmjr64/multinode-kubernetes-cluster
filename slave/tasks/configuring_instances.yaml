@@ -1,0 +1,78 @@
+---
+# tasks to configure the both slaves and master by installing the required software
+
+# disabling selinux
+- name: "Disabling SELinux"
+  selinux:
+    state: disabled
+  ignore_errors: yes
+# this task checks if docker is already installed
+- block:
+  - name: "Checking if docker is already installed"
+    shell: "docker"
+    ignore_errors: yes
+    register: install
+  - debug:
+      msg: "Docker is already installed"
+    when: install.rc==0
+  - debug:
+      msg: "Docker is not installed"
+    when: install.rc!=0
+# this task will install docker if not installed
+- block:
+  - name: "Installing Docker"
+    shell: "yum install docker -y"
+    ignore_errors: yes
+  when: install.rc!=0
+# starting the docker service
+- name: "Starting Docker"
+  service:
+    name: "docker"
+    state: started
+    enabled: yes
+- name: "Realoading the daemon"
+  systemd:
+    daemon_reload: yes
+# creating a new repo for software required for kubernetes
+- name: "Creating yum repo for kubelet, kubeadm and kubectl"
+  yum_repository:
+    name: "kubernetes"
+    description: "Kubernetes repository"
+    file: "kubernetes"
+    baseurl: 'https://packages.cloud.google.com/yum/repos/kubernetes-el7-$basearch'
+    enabled: yes
+    gpgcheck: yes
+    gpgkey: 'https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg'
+    exclude: 'kubelet kubeadm kubectl'
+# installing the packages required by kubernetes
+- name: "Installing the packages"
+  yum:
+    name:
+      - 'kubeadm'
+      - 'kubectl'
+      - 'kubelet'
+    disable_excludes: "kubernetes"
+# starting the kubelet service
+- name: "Starting kubelet services"
+  service:
+    name: "kubelet"
+    state: "started"
+    enabled: yes
+# installing iproute-tc
+- name: "Installing iproute-tc"
+  package:
+    name: 'iproute-tc'
+    state: 'present'
+# turning off the swap
+- name: 'Turning off swap'
+  shell: 'swapoff -a'
+# changing the cgroup driver in docker info from cgroupfs to systemd
+- name: 'Changing the cgroup dirver from cgroupfs to systemd'
+  copy:
+    dest: '/etc/docker/daemon.json'
+    src: 'daemon.json'
+# restarting the docker and reloading the daemon in order to make the changes to appear
+- name: "Restarting the docker service"
+  service:
+    name: "docker"
+    state: restarted

@@ -1,0 +1,20 @@
+---
+# vars file for aws-instances
+
+# Region to launch the instances
+region: 'us-east-1'
+
+# Subnet to launch the instances
+subnet: 'subnet-1234567'
+
+# Name of the keypair that must be created
+keypair_name: 'key-pair'
+
+# Type of the instance you want to use
+instance_type: 't2.micro'
+
+# AMI you want to use with the instance(recommended amazon-linux)
+instance_ami: 'ami-08e4e35cccc6189f4'
+
+# Number of slaves you want to launch
+slavesNumber: 2

@@ -1,0 +1,46 @@
+---
+# tasks file for aws-instances
+
+# following task creates a keypair and registers it in key variable
+- name: 'Create key-pair'
+  ec2_key:
+    name: '{{keypair_name}}'
+    region: '{{region}}'
+  register: key
+# After creating the keypair downloding keypair to a file in order to use it in future
+- name: 'Saving key-file'
+  copy:
+    dest: '{{keypair_name}}.pem'
+    content: '{{key["key"]["private_key"]}}'
+  when: key.changed==True
+# Launching the slave instances
+- name: 'Launching the slave instances'
+  ec2:
+    region: '{{region}}'
+    key_name: '{{key.key.name}}'  
+    instance_type: '{{instance_type}}'
+    image: '{{instance_ami}}'
+    vpc_subnet_id: '{{subnet_id}}'
+    instance_tags:
+      Name: 'slaves'
+    count: '{{slavesNumber}}'
+  register: slaves
+# Launching the master instance
+- name: 'Launching the master instance'
+  ec2:
+    region: '{{region}}'
+    key_name: '{{key.key.name}}'
+    instance_type: '{{instance_type}}'
+    image: '{{instance_ami}}'
+    vpc_subnet_id: '{{subnet_id}}'
+    instance_tags:
+      Name: 'master'
+    count: 1
+  register: master
+# Waiting until the instances are launched
+- name: "Waiting for the instances to launch"
+  wait_for:
+    host: "{{ item.public_ip  }}"
+    port: 22
+    search_regex: OpenSSH
+  loop: "{{ master.instances + slaves.instances }}"

@@ -1,0 +1,29 @@
+---
+# tasks file for master
+
+# pulling the required images
+- name: "Pulling the required images for kubernetes"
+  shell: "kubeadm config images pull"
+# starting the kubernetes master
+- name: "Starting the kubernetes master"
+  shell: "kubeadm init --pod-network-cidr={{networkCIDR}} --ignore-preflight-errors=Mem --ignore-preflight-errors=NumCPU"
+# making master as the client
+- name: "Making master as the client"
+  file:
+    path: $HOME/.kube
+    state: directory
+    mode: 0755
+- name: "Copying the kube-config file to the $HOME/.kube folder"
+  shell: "cp -i /etc/kubernetes/admin.conf $HOME/.kube/config"
+- name: "Changing the owner of the config file to the user who is running the commands"
+  shell: "chown $(id -u):$(id -g) $HOME/.kube/config"
+# storing the join command
+- name: "Getting the join command"
+  command: "kubeadm token create --print-join-command"
+  register: joinCommand
+- name: "Storing the join command"
+  set_fact:
+    joinCommand: "{{joinCommand['stdout']}}"
+- name: "Storing the join command"
+  set_fact:
+    networkCIDR: "{{networkCIDR}}"

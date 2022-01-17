@@ -1,0 +1,89 @@
+- hosts: localhost
+  vars_prompt:
+    - name: _access_key
+      prompt: "Enter your AWS access key"
+      private: yes
+    - name: _secret_key
+      prompt: "Enter your AWS secret key"
+      private: yes
+    - name: _region
+      prompt: "Enter region name"
+      private: no
+    - name: _subnet_id
+      prompt: "Enter subnet id"
+      private: no
+    - name: _slavesNumber
+      prompt: "Enter number of slave nodes"
+      private: no
+    - name: _keypair_name
+      prompt: "Enter keypair name"
+      private: no
+    - name: _instance_type
+      prompt: "Enter instance type"
+      private: no
+    - name: _instance_ami
+      prompt: "Enter the image id"
+      private: no
+  environment:
+    AWS_ACCESS_KEY: "{{ _access_key }}"
+    AWS_SECRET_KEY: "{{ _secret_key }}"
+  tasks:
+    - name: "Installing boto inorder to work with ec2 module"
+      pip:
+        name: "boto"
+    - name: "Installing boto3 inorder to work with ec2 module"
+      pip:
+        name: "boto3"
+    - name: 'Launching instances according to requirement'
+      import_role:
+        name: 'aws-instances'
+        tasks_from: 'launch_instances.yaml'
+      vars:
+        region: '{{ _region }}'
+        subnet_id: '{{ _subnet_id }}'
+        keypair_name: '{{ _keypair_name }}'
+        instance_type: '{{ _instance_type }}'
+        instance_ami: '{{ _instance_ami }}'
+        slavesNumber: '{{ _slavesNumber }}'
+        networkCIDR: '{{ _network_cidr }}'
+    - name: 'Refresing the inventory'
+      meta: refresh_inventory
+
+- hosts: _master,_slaves
+  vars_prompt:
+  tasks:
+    - wait_for:
+        port: 22
+    - name: "Configuring launched instances"
+      import_role:
+        name: "master"
+        tasks_from: 'configuring_instances.yaml'
+- hosts: _master
+  vars_prompt:
+    - name: _network_cidr
+      prompt: "Enter pod network cidr"
+      default: '10.244.0.0/16'
+      private: no
+  tasks:
+    - name: "Configuring master node"
+      import_role:
+        name: 'master'
+        tasks_from: 'master_config.yaml'
+      vars:
+        networkCIDR: '{{ _network_cidr }}'
+- hosts: _slaves
+  tasks:
+    - name: "Configuring slave node"
+      import_role:
+        name: 'slave'
+        tasks_from: 'slave_config.yaml'
+      vars:
+        joinCommand: "{{ hostvars[groups['_master'][0]]['joinCommand'] }}"
+- hosts: _master
+  tasks:
+    - name: "Configuring master node"
+      import_role:
+        name: 'master'
+        tasks_from: 'master_config_1.yaml'
+      vars:
+        networkCIDR: "{{ hostvars[groups['_master'][0]]['networkCIDR'] }}"
